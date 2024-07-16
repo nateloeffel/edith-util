@@ -79,53 +79,57 @@ def generate_code_react(prompt):
         print(f"An error occurred while generating code: {e}")
         return ""
 
+
+def infer_components(overall_instructions):
+    prompt = f"Given the following description, list the components and their purpose:\n\n{overall_instructions}\n\nList the components in the format: ComponentName: ComponentDescription"
+    response = generate_code(prompt)
+
+    component_instructions = {}
+    for line in response.split('\n'):
+        if ':' in line:
+            component_name, component_description = line.split(':', 1)
+            component_instructions[component_name.strip()] = {
+                'jsx': f"Generate a {component_name.strip()} component. {component_description.strip()}",
+                'css': f"Generate CSS for the {component_name.strip()} component. Ensure it matches the description."
+            }
+    return component_instructions
+
 def create_react_app(name, overall_instructions):
-    base_path = os.getenv('JARVIS_PROJECTS_PATH')
-    if not name:
-        print("No project name was given")
-        return
-
-    project_path = os.path.join(base_path, name)
-
     try:
-        os.makedirs(project_path, exist_ok=True)
-        subprocess.run(["npx", "create-react-app", name], cwd=base_path)
+        base_path = os.getenv('JARVIS_PROJECTS_PATH', '/Users/krishsarin/Downloads/jarvis_test')
+        project_path = os.path.join(base_path, name)
 
-        app_jsx_instructions = f"Generate the main App.jsx content for a React application. The application should follow these overall instructions: {overall_instructions}. Include necessary imports and a basic component structure. Start with import React from 'react';"
-        app_css_instructions = f"Generate the main App.css content for a React application. The application should follow these overall instructions: {overall_instructions}. Include basic CSS styles."
-        component_instructions = f"Generate a simple React functional component for a React application. The application should follow these overall instructions: {overall_instructions}. Do not include import statements."
+        subprocess.run(["npx", "create-react-app", name], cwd=base_path, check=True)
 
-        app_jsx_code = generate_code(app_jsx_instructions)
-        app_css_code = generate_code(app_css_instructions)
-        component_code = generate_code(component_instructions)
+        main_app_instructions = f"Generate a main App component for a React app with a navbar and routes for components inferred from the following description. Use react-router-dom for routing. {overall_instructions}"
+        app_js_code = generate_code_react(main_app_instructions)
+        app_css_code = generate_code_react("Generate CSS for the main App component with a dark theme and vibrant accent colors.")
 
-        app_jsx_path = os.path.join(project_path, "src", "App.jsx")
-        app_css_path = os.path.join(project_path, "src", "App.css")
-        component_path = os.path.join(project_path, "src", "components", "Calculator.jsx")
-
-        os.makedirs(os.path.dirname(component_path), exist_ok=True)
-
-        with open(app_jsx_path, 'w') as f:
-            f.write(app_jsx_code)
-
-        with open(app_css_path, 'w') as f:
+        with open(os.path.join(project_path, 'src', 'App.jsx'), 'w') as f:
+            f.write(app_js_code)
+        with open(os.path.join(project_path, 'src', 'App.css'), 'w') as f:
             f.write(app_css_code)
 
-        with open(component_path, 'w') as f:
-            f.write(component_code)
+        components_instructions = infer_components(overall_instructions)
 
-        index_js_path = os.path.join(project_path, "src", "index.js")
-        with open(index_js_path, 'r') as f:
-            index_js_content = f.read()
 
-        index_js_content = index_js_content.replace('./App', './App.jsx')
+        for component_name, instruction in components_instructions.items():
+            component_jsx_code = generate_code_react(instruction['jsx'])
+            component_css_code = generate_code_react(instruction['css'])
 
-        with open(index_js_path, 'w') as f:
-            f.write(index_js_content)
+            component_dir = os.path.join(project_path, 'src', 'components')
+            os.makedirs(component_dir, exist_ok=True)
 
-        print(f"React project and custom files created successfully in {project_path}")
+            with open(os.path.join(component_dir, f'{component_name}.jsx'), 'w') as f:
+                f.write(component_jsx_code)
+            with open(os.path.join(component_dir, f'{component_name}.css'), 'w') as f:
+                f.write(component_css_code)
+
+        print(f"React project created successfully at {project_path}")
     except Exception as e:
         print(f"An error occurred: {e}")
+
+
 def create_python_script(instructions, dir_path):
     base_path = {dir_path}
     create_python_env(base_path)
@@ -204,9 +208,10 @@ def parse_command(command, *args):
 if __name__ == "__main__":
     base_path = os.getenv('JARVIS_PROJECTS_PATH')
     print(f"JARVIS_PROJECTS_PATH: {base_path}")
-    react_app_name = "calculator_app1"
-    overall_instructions = "Create a React app with a calculator that can perform addition, subtraction, multiplication, and division. The calculator should have buttons for digits 0-9, operations (+, -, *, /), and a display to show the current input and result. The design should look aesthetically pleasing, similar to a phone application with an orange and black theme."
-
+    react_app_name = "modern_web_app1"
+    overall_instructions = """
+    Create a React app for a modern, responsive website. The website should have a home page, an about page, a services page, and a contact page. Each page should be a separate component. The design should be visually appealing with a dark theme and vibrant accent colors (e.g., neon blue and pink). Use a clean, minimalist design with ample white space. Include a navigation bar at the top with links to each page. The home page should have a hero section with a catchy headline and a call-to-action button. The services page should have cards to display different services offered, with icons and descriptions. The contact page should have a form to collect user's name, email, and message. The app should be fully responsive and look great on both desktop and mobile devices. Use CSS for styling and ensure good accessibility practices are followed.
+    """
     create_react_app(react_app_name, overall_instructions)
 
 

@@ -12,7 +12,6 @@ if __name__ == '__main__':
         current_text = recorder.text()
         print(current_text)
         if any(hot_word in current_text.lower() for hot_word in hot_words) or skip_hot_word_check:
-                    #make sure there is text
                     if current_text:
                         print("User: " + current_text)
                         recorder.stop()
