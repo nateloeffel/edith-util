@@ -81,7 +81,7 @@ def generate_code_react(prompt):
 
 
 def infer_components(overall_instructions):
-    prompt = f"Given the following description, list the components and their purpose:\n\n{overall_instructions}\n\nList the components in the format: ComponentName: ComponentDescription"
+    prompt = f"Given the following description, list the components and their purpose:\n\n{overall_instructions}\n\n Be sure to be looking for themes and colors for css files in the instructions. List the components in the format: ComponentName: ComponentDescription. Do not put parenthesis around ComponentName."
     response = generate_code(prompt)
 
     component_instructions = {}
@@ -89,8 +89,8 @@ def infer_components(overall_instructions):
         if ':' in line:
             component_name, component_description = line.split(':', 1)
             component_instructions[component_name.strip()] = {
-                'jsx': f"Generate a {component_name.strip()} component. {component_description.strip()}",
-                'css': f"Generate CSS for the {component_name.strip()} component. Ensure it matches the description."
+                'jsx': f"Generate a {component_name.strip()} component. {component_description.strip()}. Do not include any css code in this file, and do not include anything in the first line that is not readable by the computer ",
+                'css': f"Generate CSS for the {component_name.strip()} component. Ensure it matches the description. Do not include any jsx code in this file, and do not include anything in the first line that is not readable by the computer"
             }
     return component_instructions
 
@@ -102,11 +102,12 @@ def create_react_app(name, overall_instructions):
         subprocess.run(["npx", "create-react-app", name], cwd=base_path, check=True)
 
         main_app_instructions = f"Generate a main App component for a React app with a navbar and routes for components inferred from the following description. Use react-router-dom for routing. {overall_instructions}"
-        app_js_code = generate_code_react(main_app_instructions)
-        app_css_code = generate_code_react("Generate CSS for the main App component with a dark theme and vibrant accent colors.")
+        app_jsx_code = generate_code_react(main_app_instructions)
+        main_css_instructions = f"Generate CSS for main App component inferred from the following description. {overall_instructions}"
+        app_css_code = generate_code_react(main_css_instructions)
 
         with open(os.path.join(project_path, 'src', 'App.jsx'), 'w') as f:
-            f.write(app_js_code)
+            f.write(app_jsx_code)
         with open(os.path.join(project_path, 'src', 'App.css'), 'w') as f:
             f.write(app_css_code)
 
@@ -210,7 +211,7 @@ if __name__ == "__main__":
     print(f"JARVIS_PROJECTS_PATH: {base_path}")
     react_app_name = "modern_web_app1"
     overall_instructions = """
-    Create a React app for a modern, responsive website. The website should have a home page, an about page, a services page, and a contact page. Each page should be a separate component. The design should be visually appealing with a dark theme and vibrant accent colors (e.g., neon blue and pink). Use a clean, minimalist design with ample white space. Include a navigation bar at the top with links to each page. The home page should have a hero section with a catchy headline and a call-to-action button. The services page should have cards to display different services offered, with icons and descriptions. The contact page should have a form to collect user's name, email, and message. The app should be fully responsive and look great on both desktop and mobile devices. Use CSS for styling and ensure good accessibility practices are followed.
+    Create a React app for a modern, responsive website. The website should have a home page, an about page, a services page, and a contact page. Each page should be a separate component. Center Everything. The design should be visually appealing with a dark theme and vibrant accent colors (e.g., neon blue and pink). Use a clean, minimalist design with ample white space. Center everything. Do not have anything oddly to the side. Include a navigation bar at the top with links to each page. The home page should have a hero section with a catchy headline and a call-to-action button. The services page should have cards to display different services offered, with icons and descriptions. The contact page should have a form to collect user's name, email, and message. The app should be fully responsive and look great on both desktop and mobile devices. Use CSS for styling and ensure good accessibility practices are followed.
     """
     create_react_app(react_app_name, overall_instructions)
 
