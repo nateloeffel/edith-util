@@ -6,9 +6,6 @@ import time
 import subprocess
 from openai import OpenAI
 
-
-
-
 def image_search(query):
     google_Crawler = GoogleImageCrawler(storage= {"root_dir": r'./'})
     google_Crawler.crawl(keyword= query, max_num=1)
