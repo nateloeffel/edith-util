@@ -2,6 +2,7 @@ from openai import OpenAI
 import time
 from pygame import mixer
 import os
+import json
 
 #https://platform.openai.com/playground/assistants
 # Initialize the client and mixer
@@ -26,6 +27,27 @@ def ask_question_memory(question):
     while (run_status := client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)).status != 'completed':
         if run_status.status == 'failed':
             return "The run failed."
+        if run_status.status == 'requires_action':
+            print("Requires Action")
+            required_actions = run_status.required_action.submit_tool_outputs.model_dump()
+            print(required_actions)
+            tools_output = []
+            for action in required_actions["tool_calls"]:
+                func_name = action["function"]["name"]
+                arguments = json.loads(action["function"]["arguments"])
+                if func_name == "get_stock_price":
+                    output = 80
+                    tools_output.append({
+                        "tool_call_id": action["id"],
+                        "output": str(output)
+                    })
+                else:
+                    print("Function not found")
+            client.beta.threads.runs.submit_tool_outputs(
+                thread_id=thread.id,
+                run_id=run.id,
+                tool_outputs=tools_output
+            )
         time.sleep(1)
     
     messages = client.beta.threads.messages.list(thread_id=thread.id)
