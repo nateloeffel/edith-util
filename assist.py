@@ -3,6 +3,7 @@ import time
 from pygame import mixer
 import os
 import json
+from functions.stockprices import get_stock_price
 
 #https://platform.openai.com/playground/assistants
 # Initialize the client and mixer
@@ -35,8 +36,9 @@ def ask_question_memory(question):
             for action in required_actions["tool_calls"]:
                 func_name = action["function"]["name"]
                 arguments = json.loads(action["function"]["arguments"])
-                if func_name == "get_stock_price":
-                    output = 80
+                print(arguments)
+                if func_name == "get_stock_price": # functions are defined on assistant definition
+                    output = get_stock_price(arguments["symbol"])
                     tools_output.append({
                         "tool_call_id": action["id"],
                         "output": str(output)
