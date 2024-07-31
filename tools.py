@@ -340,7 +340,6 @@ def create_component_files(component_name, instructions, project_path):
     # Generate JSX code with Tailwind CSS classes
     component_jsx_code = generate_code_react(instructions['jsx'])
 
-    # Tailwind CSS will be used within the JSX, so no separate CSS generation is needed
     component_css_code = ""
 
     component_dir = os.path.join(project_path, 'src', 'components', component_name)
