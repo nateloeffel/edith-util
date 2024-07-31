@@ -82,7 +82,7 @@ def generate_code_react(prompt):
     try:
         messages = [
             {"role": "system",
-             "content": "Write React code to complete the objective fully. Ensure the code is clean, modern, and includes comments where necessary. Respond only with the code."},
+             "content": "Write React code to complete the objective fully. Ensure the code is clean, modern, and uses Tailwind CSS classes for styling. Respond only with the code."},
             {"role": "user", "content": prompt}
         ]
 
@@ -91,20 +91,21 @@ def generate_code_react(prompt):
             messages=messages,
         )
         reply = response.choices[0].message.content
-        reply = reply.replace("```jsx", "").replace("```css", "").replace("```", "")
+        reply = reply.replace("```jsx", "").replace("```", "")
         if reply.startswith("javascript"):
             reply = reply[len("javascript"):].strip()
         return reply
     except Exception as e:
         print(f"An error occurred while generating code: {e}")
         return ""
+
 
 def generate_code_css(prompt):
     client = OpenAI()
     try:
         messages = [
             {"role": "system",
-             "content": "Write Tailwind CSS code to complete the objective fully. Ensure the code is clean, modern, and includes comments where necessary. Use Tailwind CSS classes to achieve a professional and attractive design. Respond only with the code."},
+             "content": "Write Tailwind CSS classes for the described design. Respond only with the classes."},
             {"role": "user", "content": prompt}
         ]
 
@@ -113,13 +114,12 @@ def generate_code_css(prompt):
             messages=messages,
         )
         reply = response.choices[0].message.content
-        reply = reply.replace("```jsx", "").replace("```css", "").replace("```", "")
-        if reply.startswith("javascript"):
-            reply = reply[len("javascript"):].strip()
-        return reply
+        reply = reply.replace("```css", "").replace("```", "")
+        return reply.strip()
     except Exception as e:
-        print(f"An error occurred while generating code: {e}")
+        print(f"An error occurred while generating CSS: {e}")
         return ""
+
 
 def generate_functionality_instructions_prompt(simple_instruction):
     client = OpenAI()
@@ -337,16 +337,20 @@ def gather_detailed_instructions(simple_instruction):
 
 
 def create_component_files(component_name, instructions, project_path):
+    # Generate JSX code with Tailwind CSS classes
     component_jsx_code = generate_code_react(instructions['jsx'])
-    component_css_code = generate_code_css(instructions['css'])
+
+    # Tailwind CSS will be used within the JSX, so no separate CSS generation is needed
+    component_css_code = ""
 
     component_dir = os.path.join(project_path, 'src', 'components', component_name)
     os.makedirs(component_dir, exist_ok=True)
 
     with open(os.path.join(component_dir, f'{component_name}.jsx'), 'w') as f:
         f.write(component_jsx_code)
-    with open(os.path.join(component_dir, f'{component_name}.css'), 'w') as f:
-        f.write(component_css_code)
+    if component_css_code:
+        with open(os.path.join(component_dir, f'{component_name}.css'), 'w') as f:
+            f.write(component_css_code)
 
 
 def create_react_app(name, components_instructions, detailed_instructions):
@@ -355,28 +359,47 @@ def create_react_app(name, components_instructions, detailed_instructions):
         project_path = os.path.join(base_path, name)
 
         subprocess.run(["npx", "create-react-app", name], cwd=base_path, check=True)
-        subprocess.run(["npm", "install", "react-router-dom", "tailwindcss", "react-icons","react-helmet"], cwd=project_path, check=True)
+        subprocess.run(["npm", "install", "react-router-dom", "tailwindcss", "postcss", "autoprefixer", "react-icons"], cwd=project_path, check=True)
+
+        # Initialize Tailwind CSS
+        subprocess.run(["npx", "tailwindcss", "init", "-p"], cwd=project_path, check=True)
+        with open(os.path.join(project_path, 'tailwind.config.js'), 'w') as f:
+            f.write("""
+module.exports = {
+  purge: ['./src/**/*.{js,jsx,ts,tsx}', './public/index.html'],
+  darkMode: false,
+  theme: {
+    extend: {},
+  },
+  variants: {
+    extend: {},
+  },
+  plugins: [],
+};
+            """)
+
+        with open(os.path.join(project_path, 'src', 'index.css'), 'w') as f:
+            f.write("""
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+            """)
 
         # Generate and save components
         for component_name, instruction in components_instructions.items():
             print(component_name)
             create_component_files(component_name, instruction, project_path)
 
-        # Generate main App component and CSS
-        main_app_instructions = f"Generate a main App component for a React app with routes for components: {', '.join(components_instructions.keys())}. Use react-router-dom for routing. Ensure all import paths follow the pattern './components/ComponentName/ComponentName'."
+        # Generate main App component with Tailwind CSS classes
+        main_app_instructions = f"Generate a main App component for a React app with routes for components: {', '.join(components_instructions.keys())}. Use react-router-dom for routing and Tailwind CSS for styling. Ensure all import paths follow the pattern './components/ComponentName/ComponentName'."
         app_jsx_code = generate_code_react(main_app_instructions)
-        main_css_instructions = f"Generate CSS for main App component inferred from the following description. {detailed_instructions}"
-        app_css_code = generate_code_css(main_css_instructions)
+        app_css_code = ""
 
         with open(os.path.join(project_path, 'src', 'App.jsx'), 'w') as f:
             f.write(app_jsx_code)
-        with open(os.path.join(project_path, 'src', 'App.css'), 'w') as f:
-            f.write(app_css_code)
-
-        # Initialize Tailwind CSS
-        subprocess.run(["npx", "tailwindcss", "init"], cwd=project_path, check=True)
-        with open(os.path.join(project_path, 'tailwind.config.js'), 'a') as f:
-            f.write("\nmodule.exports = { purge: ['./src/**/*.{js,jsx,ts,tsx}', './public/index.html'], darkMode: false, theme: { extend: {}, }, variants: { extend: {}, }, plugins: [], };")
+        if app_css_code:
+            with open(os.path.join(project_path, 'src', 'App.css'), 'w') as f:
+                f.write(app_css_code)
 
         print("React project created successfully.")
         print("\nComponents and Descriptions:")
@@ -392,7 +415,8 @@ def create_react_app(name, components_instructions, detailed_instructions):
 def main():
     simple_instruction = "I want to create a cookbook website. This website should have a home page, about page, contact page, and recipes page. The first three pages should be pretty generic but the recipes page should have several cuisines listed and then you can click on those cuisines to get different dishes from the clicked cuisine and then you can click on the dishes to get the recipes. The whole theme should be a light green and white color throughout the entire website. It should include a navbar to connect all the pages, and every button should work with a specified purpose. No button should have no instruction."
 
-    functionality_instructions, design_instructions = gather_detailed_instructions(simple_instruction)
+    functionality_instructions = generate_functionality_instructions_prompt(simple_instruction)
+    design_instructions = generate_design_instructions_prompt(simple_instruction)
 
     # Generate component instructions
     components_prompt = infer_components_prompt(functionality_instructions)
@@ -403,18 +427,13 @@ def main():
             component_name, component_description = line.split(':', 1)
             components[component_name.strip()] = {
                 'description': component_description.strip(),
-                'jsx': f"Generate a {component_name.strip()} component. {component_description.strip()}. Ensure it matches the description exactly. Do not include any CSS code in this file.",
-                'css': f"Generate Tailwind CSS for the {component_name.strip()} component. Ensure it matches the description. Do not include any JSX code in this file."
+                'jsx': f"Generate a {component_name.strip()} component. {component_description.strip()}. Ensure it matches the description exactly and uses Tailwind CSS classes. Do not include any CSS code in this file.",
+                'css': f"Generate Tailwind CSS classes for the {component_name.strip()} component based on the following JSX code:\n{component_description.strip()}"
             }
     print(components)
 
     # Once all details are gathered, create the React app
-    create_react_app("food_web1", components, f"{functionality_instructions}\n\n{design_instructions}")
-
-
-
-
-
+    create_react_app("food_web2", components, f"{functionality_instructions}\n\n{design_instructions}")
 
 if __name__ == "__main__":
     main()
